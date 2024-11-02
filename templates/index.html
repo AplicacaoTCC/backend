@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Vídeo para Processamento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Upload de Vídeo para Processamento</h2>
+
+    <form id="videoForm" method="post" enctype="multipart/form-data">
+        <label for="video">Escolha um vídeo:</label>
+        <input type="file" id="video" name="video" accept="video/*" required>
+
+        <label for="interval">Intervalo de corte (em segundos):</label>
+        <input type="number" id="interval" name="interval" min="1" required>
+
+        <button type="submit">Enviar</button>
+    </form>
+
+    <button id="analyzeButton" onclick="analyzeEmotions()" style="margin-top: 10px;">Analisar Emoções</button>
+
+    <div id="result"></div>
+
+    <!-- Canvas para o gráfico de emoções -->
+    <h3>Emoções ao Longo do Tempo</h3>
+    <canvas id="emotionChart" width="800" height="400"></canvas>
+
+    <script>
+        // Captura o evento de submissão do formulário para processar o vídeo
+        document.getElementById('videoForm').onsubmit = async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            const videoFile = document.getElementById('video').files[0];
+            const interval = document.getElementById('interval').value;
+
+            formData.append('video', videoFile);
+            formData.append('interval', interval);
+
+            try {
+                // Faz a solicitação para processar o vídeo
+                const response = await fetch('/process_video', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                document.getElementById('result').innerHTML = `
+                    <h3>Resultado do Processamento:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Erro:</h3>
+                    <p>Falha ao enviar o vídeo. Tente novamente.</p>
+                `;
+            }
+        };
+
+        // Função para analisar emoções nos frames processados
+        async function analyzeEmotions() {
+            try {
+                const response = await fetch('/analyze_emotions');
+                const result = await response.json();
+
+                document.getElementById('result').innerHTML = `
+                    <h3>Emoções Detectadas:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+
+                // Processar os dados para o gráfico
+                const emotionCounts = processEmotionData(result.emotions);
+                plotEmotionChart(emotionCounts);
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Erro:</h3>
+                    <p>Falha ao analisar emoções. Tente novamente.</p>
+                `;
+            }
+        }
+
+        // Função para processar dados de emoções
+        function processEmotionData(emotions) {
+            const emotionCounts = {};
+            const timeLabels = [];
+
+            // Inicializar contagem de emoções para cada segundo
+            emotions.forEach((entry, index) => {
+                const timeLabel = `Segundo ${index + 1}`;
+                timeLabels.push(timeLabel);
+
+                const emotion = entry.emocao;
+                if (!emotionCounts[emotion]) {
+                    emotionCounts[emotion] = Array(emotions.length).fill(0);
+                }
+                emotionCounts[emotion][index] = 1;
+            });
+
+            return { emotionCounts, timeLabels };
+        }
+
+        // Função para exibir o gráfico de emoções
+        function plotEmotionChart(data) {
+            const ctx = document.getElementById('emotionChart').getContext('2d');
+
+            const datasets = Object.keys(data.emotionCounts).map(emotion => {
+                return {
+                    label: emotion,
+                    data: data.emotionCounts[emotion],
+                    fill: false,
+                    borderColor: getRandomColor(),
+                    tension: 0.5
+                };
+            });
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.timeLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Emoções ao Longo do Tempo'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Frequência'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para gerar uma cor aleatória para cada linha do gráfico
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+    </script>
+</body>
+</html>
