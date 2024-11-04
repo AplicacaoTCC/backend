@@ -1,9 +1,11 @@
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import cv2
 import os
 from model import predict_emotions
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:4200"])
 
 # Diretório para salvar temporariamente os frames
 OUTPUT_DIR = 'video_frames'
