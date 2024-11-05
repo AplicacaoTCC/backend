@@ -24,24 +24,19 @@ class_mapping = {
 
 
 # Função para carregar, detectar o rosto e preprocessar as imagens
-def load_and_preprocess_faces(image_dir, target_size=(48, 48)):
+def load_and_preprocess_faces(frames, target_size=(48, 48)):
     images = []
-    file_names = []  # Para armazenar nomes de arquivos para identificação de saída
-    for file_name in os.listdir(image_dir):
-        file_path = os.path.join(image_dir, file_name)
+    for frame in frames:
+        # Converter o frame para escala de cinza
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Carregar a imagem em escala de cinza
-        image = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
-        if image is None:
-            continue  # Ignora arquivos que não são imagens
-
-        # Detectar o rosto na imagem
-        faces = face_cascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        # Detectar o rosto no frame
+        faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
         # Se pelo menos um rosto for detectado, pegar o primeiro rosto
         if len(faces) > 0:
             x, y, w, h = faces[0]  # Coordenadas do rosto
-            face = image[y:y + h, x:x + w]  # Recortar a região do rosto
+            face = gray_frame[y:y + h, x:x + w]  # Recortar a região do rosto
 
             # Redimensionar o rosto para o tamanho desejado (48x48)
             face = cv2.resize(face, target_size)
@@ -54,16 +49,18 @@ def load_and_preprocess_faces(image_dir, target_size=(48, 48)):
 
             # Adicionar o rosto preprocessado à lista de imagens
             images.append(face)
-            file_names.append(file_name)  # Armazena o nome da imagem atual
 
     # Converter a lista em um array NumPy para ser usado na predição
-    return np.array(images), file_names
+    return np.array(images)
 
 
-# Função para prever emoções nas imagens
-def predict_emotions(image_dir):
-    # Carregar e preprocessar os rostos
-    test_images, file_names = load_and_preprocess_faces(image_dir)
+def predict_emotions(frames):
+    # Carregar e preprocessar os rostos dos frames
+    test_images = load_and_preprocess_faces(frames)
+
+    # Verificar se há rostos detectados
+    if test_images.size == 0:
+        return ["Nenhum rosto detectado"] * len(frames)
 
     # Realizar predições com o modelo
     label_ps = model.predict(test_images)
@@ -71,12 +68,14 @@ def predict_emotions(image_dir):
     # Armazenar resultados de emoções
     emotions = []
 
-    for i, prediction in enumerate(label_ps):
+    for prediction in label_ps:
         # Encontrar o índice da maior probabilidade
         predicted_label = np.argmax(prediction)
         # Mapear para o nome da emoção
         emotion = class_mapping[predicted_label]
-        # Armazenar o nome do arquivo e a emoção prevista
-        emotions.append({"imagem": file_names[i], "emocao": emotion})
+        # Adicionar a emoção prevista ao resultado
+        emotions.append(emotion)
 
     return emotions
+
+
