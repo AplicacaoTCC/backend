@@ -8,7 +8,8 @@ from tensorflow.keras.models import load_model
 model = load_model("fer_model_best.h5")
 
 # Carregar o classificador de rosto Haar Cascade
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+cascade_path = os.path.join('haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier(cascade_path)
 
 # Mapeamento de classes
 class_mapping = {
