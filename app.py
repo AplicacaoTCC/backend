@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify
 from flask_cors import CORS
 import cv2
 import os
-from model import predict_emotions
+from model import get_emotion_classification
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:4200"])
@@ -23,7 +23,6 @@ def clear_output_dir():
 
 @app.route('/')
 def index():
-    # Renderiza o index.html ao acessar a rota principal
     return render_template('index.html')
 
 @app.route('/process_video', methods=['POST'])
@@ -31,10 +30,8 @@ def process_video():
     # Limpar frames do vídeo anterior
     clear_output_dir()
 
-    # Receber o vídeo e o intervalo
+    # Receber o vídeo
     video_file = request.files.get('video')
-    interval = int(request.form.get('interval', 10))  # Padrão para 10 segundos, se não especificado
-
     if not video_file:
         return jsonify({"error": "Nenhum vídeo enviado"}), 400
 
@@ -46,40 +43,37 @@ def process_video():
     video = cv2.VideoCapture(video_path)
     fps = int(video.get(cv2.CAP_PROP_FPS))  # Taxa de quadros por segundo do vídeo
     total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps  # Duração total em segundos
+    emotion_results = []  # Armazena os resultados de emoções
 
-    # Calcula o número de pedaços
-    num_segments = int(duration // interval)
-    captured_frames = []
+    # Processar um frame por segundo
+    for frame_number in range(0, total_frames, fps):
+        video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+        ret, frame = video.read()
+        if ret:
+            # Salvar o frame temporariamente
+            frame_path = os.path.join(OUTPUT_DIR, f"temp_frame.jpg")
+            cv2.imwrite(frame_path, frame)
 
-    for segment in range(num_segments):
-        # Definir o ponto de início do segmento
-        start_frame = segment * interval * fps
+            # Calcular o tempo em minutos e segundos
+            time_in_seconds = frame_number / fps
+            minutes = int(time_in_seconds // 60)
+            seconds = int(time_in_seconds % 60)
+            time_formatted = f"{minutes:02}:{seconds:02}"
 
-        # Capturar 1 frame por segundo no segmento
-        for sec in range(interval):
-            frame_number = start_frame + sec * fps
-            video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-            ret, frame = video.read()
-            if ret:
-                # Salvar o frame como imagem
-                frame_filename = f"frame_segment_{segment}_second_{sec}.jpg"
-                frame_path = os.path.join(OUTPUT_DIR, frame_filename)
-                cv2.imwrite(frame_path, frame)
-                captured_frames.append(frame_filename)
-            else:
-                break
+            # Analisar a emoção do frame atual
+            emotions = get_emotion_classification(frame_path)
+            
+            if emotions:
+                emotion_results.append({
+                    "time": time_formatted,
+                    "emotions": emotions  # Probabilidades das emoções para o frame
+                })
+        else:
+            break
 
     video.release()
-    os.remove(video_path)  # Remover o vídeo 0temporário
-
-    return jsonify({"message": "Processamento concluído", "frames": captured_frames}), 200
-
-@app.route('/analyze_emotions', methods=['GET'])
-def analyze_emotions():
-    # Usa a função `predict_emotions` para analisar as emoções nas imagens processadas
-    emotions = predict_emotions(OUTPUT_DIR)
-    return jsonify({"emotions": emotions}), 200
+    os.remove(video_path)  # Remover o vídeo temporário
+    return jsonify({"message": "Processamento concluído", "results": emotion_results}), 200
 
 if __name__ == "__main__":
     app.run()
