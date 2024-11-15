@@ -29,6 +29,7 @@ def get_emotion_classification(dest):
     )
 
     for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Cor azul (BGR) e espessura 2
         img = gray[y:y+h, x:x+w]
         clahe_image = clahe.apply(img)
         img1 = Image.fromarray(clahe_image).resize((48, 48))
@@ -40,10 +41,10 @@ def get_emotion_classification(dest):
         reshaped_image = np.pad(f, (0, 3200 - f.size), 'constant').reshape(1, 3200) if f.size < 3200 else f[:3200].reshape(1, 3200)
         probabilities = clf.predict_proba(reshaped_image)[0]  # Retorna uma lista de probabilidades para cada classe
         
-        # Exibir as probabilidades com o mapeamento de classes
         emotion_probabilities = {class_mapping[i]: prob * 100 for i, prob in enumerate(probabilities)}
         
-        return emotion_probabilities
+        return emotion_probabilities, frame
 
     # Caso nenhum rosto seja detectado
-    return None
+    zeroed_emotions = {emotion: 0.0 for emotion in class_mapping}
+    return zeroed_emotions, frame
