@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M       # Limita a memória a 512 MB
+          cpus: "0.1"        # Limita a CPU a 0,1
+    environment:
+      - PORT=8000
