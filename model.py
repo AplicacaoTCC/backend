@@ -25,7 +25,7 @@ def get_emotion_classification(dest):
         gray,
         scaleFactor=1.1,
         minNeighbors=5,
-        minSize=(30, 30),
+        minSize=(40, 40),
     )
 
     for (x, y, w, h) in faces:

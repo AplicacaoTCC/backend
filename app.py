@@ -93,10 +93,10 @@ def process_video():
                     yield f"data: {json.dumps(progress)}\n\n"
 
                     # Salvar alguns frames destacados
-                    if random.random() <= 0.1 and highlights_saved < 8:
-                        highlight_frame_path = os.path.join(HIGHLIGHTED_DIR, f"{minutes:02}{seconds:02}.png")
-                        cv2.imwrite(highlight_frame_path, frame_with_markings)
-                        highlights_saved += 1
+                    # if random.random() <= 0.1 and highlights_saved < 8:
+                    highlight_frame_path = os.path.join(HIGHLIGHTED_DIR, f"{minutes:02}{seconds:02}.png")
+                    cv2.imwrite(highlight_frame_path, frame_with_markings)
+                    highlights_saved += 1
 
                 time.sleep(0.1)  # Simular tempo de processamento
 
